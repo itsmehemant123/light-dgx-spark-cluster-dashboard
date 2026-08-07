@@ -209,6 +209,9 @@ function draw(def) {
   const ctx = cv.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
+  const cs = getComputedStyle(document.documentElement);
+  const gridCol = cs.getPropertyValue("--grid").trim() || "#1c2733";
+  const dimCol = cs.getPropertyValue("--dim").trim() || "#7d8b99";
 
   const traces = collectTraces(def);
   const leg = legendEl(def.canvas); leg.innerHTML = "";
@@ -217,14 +220,14 @@ function draw(def) {
   let minT = Infinity, maxT = -Infinity, minV = Infinity, maxV = -Infinity;
   for (const tr of traces) for (const p of tr.pts) { if (p.t < minT) minT = p.t; if (p.t > maxT) maxT = p.t; if (p.v < minV) minV = p.v; if (p.v > maxV) maxV = p.v; }
   if (!isFinite(minT) || traces.length === 0) {
-    ctx.fillStyle = "#7d8b99"; ctx.textAlign = "center"; ctx.fillText("waiting for data…", W / 2, H / 2);
+    ctx.fillStyle = dimCol; ctx.textAlign = "center"; ctx.fillText("waiting for data…", W / 2, H / 2);
     return;
   }
   const pad = (maxV - minV) * 0.08 || 1; minV = Math.max(0, minV - pad); maxV = maxV + pad;
   if (maxV === minV) maxV = minV + 1;
   const range = (maxT - minT) || 1;
 
-  ctx.strokeStyle = "#1c2733"; ctx.fillStyle = "#7d8b99"; ctx.font = "10px sans-serif"; ctx.lineWidth = 1;
+  ctx.strokeStyle = gridCol; ctx.fillStyle = dimCol; ctx.font = "10px sans-serif"; ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const yy = H - ((H - 24) * i / 4);
     ctx.beginPath(); ctx.moveTo(42, yy); ctx.lineTo(W - 6, yy); ctx.stroke();
@@ -278,6 +281,20 @@ document.querySelectorAll("[data-poll]").forEach(b => b.addEventListener("click"
 }));
 document.getElementById("view-per").addEventListener("click", () => setView("per"));
 document.getElementById("view-agg").addEventListener("click", () => setView("agg"));
+
+// ---- themes (client-side only; persisted per browser, no server state) ----
+function applyTheme(name) {
+  document.documentElement.dataset.theme = name;
+  try { localStorage.setItem("dash-theme", name); } catch (e) { /* private browsing */ }
+}
+const themeSel = document.getElementById("theme");
+themeSel.addEventListener("change", () => applyTheme(themeSel.value));
+(function initTheme() {
+  let t = "default";
+  try { t = localStorage.getItem("dash-theme") || "default"; } catch (e) { /* ignore */ }
+  themeSel.value = t;
+  applyTheme(t);
+})();
 
 buildTiles(view);
 
