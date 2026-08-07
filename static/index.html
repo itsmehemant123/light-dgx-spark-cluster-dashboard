@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DGX Spark Cluster Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">DGX <span>Spark</span> dashboard</div>
+  <div id="status" class="status"><span class="dot"></span><span id="status-text">connecting…</span></div>
+  <div id="tokens" class="tokens" hidden></div>
+  <div id="live" class="live" hidden>LIVE</div>
+</header>
+
+<nav class="controls">
+  <div class="ctl-group">
+    <span class="ctl-label">poll</span>
+    <button data-poll="250">250ms</button>
+    <button data-poll="500">500ms</button>
+    <button data-poll="1000">1s</button>
+    <button data-poll="2000">2s</button>
+    <button data-poll="5000" class="active">5s</button>
+  </div>
+  <div class="ctl-group">
+    <span class="ctl-label">view</span>
+    <button id="view-per" class="active">per node</button>
+    <button id="view-agg">aggregated</button>
+  </div>
+</nav>
+
+<section id="tiles" class="tiles"></section>
+
+<section class="plots">
+  <div class="plot"><canvas id="plot-temp"></canvas><div class="plot-title">Temperature (°C)</div></div>
+  <div class="plot"><canvas id="plot-power"></canvas><div class="plot-title">Power (W)</div></div>
+  <div class="plot"><canvas id="plot-clock"></canvas><div class="plot-title">Clocks (MHz)</div></div>
+  <div class="plot"><canvas id="plot-util"></canvas><div class="plot-title">Utilization (%)</div></div>
+</section>
+
+<footer class="foot">
+  <span id="source"></span>
+  <span>time window: recent (decimating) — tab-local, no server storage</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

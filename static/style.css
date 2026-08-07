@@ -1,0 +1,48 @@
+:root{
+  --bg:#0b0f14; --panel:#131a22; --panel2:#0f151c; --border:#22303d;
+  --txt:#d8e2ec; --dim:#7d8b99; --ok:#34d399; --warn:#f59e0b; --bad:#ef4444;
+  --live:#f43f5e;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);
+  font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#0e141b,#0b0f14)}
+.brand{font-weight:700;font-size:18px;letter-spacing:.5px}
+.brand span{color:#76b900}
+.status{display:flex;align-items:center;gap:6px;color:var(--dim)}
+.status .dot{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+.status.up .dot{background:var(--ok)}
+.status.down .dot{background:var(--bad)}
+.status.partial .dot{background:var(--warn)}
+.tokens{color:var(--dim);font-size:13px}
+.live{margin-left:auto;margin-right:8px;font-weight:800;letter-spacing:1px;color:var(--live);
+  animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+nav.controls{display:flex;gap:24px;padding:10px 16px;border-bottom:1px solid var(--border);
+  background:var(--panel2);flex-wrap:wrap;align-items:center}
+.ctl-group{display:flex;align-items:center;gap:6px}
+.ctl-label{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+button{background:var(--panel);color:var(--txt);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;cursor:pointer;font-size:12px}
+button:hover{border-color:var(--dim)}
+button.active{background:#1d3140;border-color:#3b82f6;color:#fff}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:16px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.card .lbl{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.card .vals{display:flex;gap:14px;margin-top:4px;flex-wrap:wrap}
+.val .node{font-size:10px;color:var(--dim)}
+.val .num{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.val .unit{font-size:11px;color:var(--dim);margin-left:2px}
+.val.na .num{color:var(--dim)}
+.val.down .num{color:var(--bad)}
+.plots{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:12px;padding:0 16px 16px}
+.plot{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px;position:relative}
+.plot canvas{width:100%;height:180px;display:block}
+.plot-title{position:absolute;top:14px;left:14px;color:var(--dim);font-size:11px;
+  text-transform:uppercase;letter-spacing:.5px;pointer-events:none}
+.legend{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:2px;
+  font-size:10px;color:var(--dim);pointer-events:none;text-align:right}
+.legend span{white-space:nowrap}
+footer.foot{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;color:var(--dim);
+  font-size:12px;border-top:1px solid var(--border);flex-wrap:wrap}

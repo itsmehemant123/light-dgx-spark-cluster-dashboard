@@ -1,0 +1,45 @@
+# Systemd unit for the DGX Spark dashboard (HEAD node).
+#
+# Install:
+#   sudo cp dash-serve.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dash-serve
+#
+# Low-privilege user: create once with
+#   sudo useradd --system --create-home --shell /usr/sbin/nologin dashdash
+# IMPORTANT (SSH/device access):
+#   * The run user must be able to reach the WORKER passwordlessly. Either point
+#     this service at an account whose SSH keys already work, or generate keys
+#     for `dashdash` and add the pubkey to the worker's authorized_keys, e.g.:
+#       sudo -u dashdash ssh-keygen -t ed25519
+#       cat ~dashdash/.ssh/id_ed25519.pub   # -> append on worker to authorized_keys
+#       sudo -u dashdash ssh root@192.168.100.11 'echo ok'   # accept host key
+#   * If nvidia-smi or sysfs reads require root, run as the DGX admin account
+#     (set User= accordingly) instead of dashdash.
+[Unit]
+Description=Lightweight DGX Spark cluster dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dashdash
+Group=dashdash
+WorkingDirectory=/opt/dash
+ExecStart=/opt/dash/dash-serve
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+
+# --- configuration ---
+Environment=DASH_BIND=127.0.0.1:8088
+Environment=DASH_POLL_MS=5000
+Environment=DASH_WORKER_IP=192.168.100.11
+Environment=DASH_WORKER_SSH_PORT=22
+Environment=DASH_WORKER_USER=root
+Environment=DASH_VLLM_ENDPOINT=http://127.0.0.1:8000/metrics
+# Only if you must skip SSH host-key checking:
+#Environment=DASH_INSECURE_SKIP_HOSTKEY=1
+
+[Install]
+WantedBy=multi-user.target
