@@ -13,7 +13,8 @@
 #     for `dashdash` and add the pubkey to the worker's authorized_keys, e.g.:
 #       sudo -u dashdash ssh-keygen -t ed25519
 #       cat ~dashdash/.ssh/id_ed25519.pub   # -> append on worker to authorized_keys
-#       sudo -u dashdash ssh root@192.168.100.11 'echo ok'   # accept host key
+#       sudo -u dashdash ssh dashdash@192.168.100.137 'echo ok'   # accept host key
+#   * Follow user_setup.md for the full dedicated-account install + hardening.
 #   * If nvidia-smi or sysfs reads require root, run as the DGX admin account
 #     (set User= accordingly) instead of dashdash.
 [Unit]
@@ -34,9 +35,9 @@ LimitNOFILE=65535
 # --- configuration ---
 Environment=DASH_BIND=127.0.0.1:8088
 Environment=DASH_POLL_MS=5000
-Environment=DASH_WORKER_IP=192.168.100.11
+Environment=DASH_WORKER_IP=192.168.100.137
 Environment=DASH_WORKER_SSH_PORT=22
-Environment=DASH_WORKER_USER=root
+Environment=DASH_WORKER_USER=dashdash
 Environment=DASH_VLLM_ENDPOINT=http://127.0.0.1:8000/metrics
 # Only if you must skip SSH host-key checking:
 #Environment=DASH_INSECURE_SKIP_HOSTKEY=1

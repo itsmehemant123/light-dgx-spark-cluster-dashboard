@@ -87,19 +87,21 @@ GOOS=linux GOARCH=arm64 go build -o dash-serve-linux-arm64 .
 
 ## Deployment (head node service)
 
-1. Build/copy the binary to `/opt/dash/dash-serve`.
-2. Create a low-privilege user and ensure it can reach the worker passwordlessly
-   and read GPU/sysfs (read `dash-serve.service` for exact steps):
-   ```bash
-   sudo useradd --system --create-home --shell /usr/sbin/nologin dashdash
-   ```
-3. Install the service:
+> Full, corrected walkthrough (dedicated `dashdash` account on both nodes, the
+> step-by-step SSH setup, testing, and worker hardening): **see
+> [`user_setup.md`](user_setup.md)**. This repo is preconfigured for
+> head `192.168.100.254` / worker `192.168.100.137`.
+
+1. Build/copy the binary to `/opt/dash/dash-serve` and create the
+   low-privilege `dashdash` account (head: `nologin`, worker: `bash`) with
+   passwordless SSH to the worker — follow `user_setup.md`.
+2. Install the service:
    ```bash
    sudo cp dash-serve.service /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now dash-serve
    ```
-4. (Optional) Reverse-proxy on the LAN with nginx — install `nginx-dash.conf`
+3. (Optional) Reverse-proxy on the LAN with nginx — install `nginx-dash.conf`
    (SSE buffering is already off and read timeout is long):
    ```bash
    sudo cp nginx-dash.conf /etc/nginx/sites-available/dash
