@@ -29,13 +29,21 @@ All optional sources degrade gracefully — missing sources are shown as **N/A**
 
 | Source | What | Availability |
 |---|---|---|
-| `nvidia-smi` | per-GPU util, mem, power, temp, memory temp, clocks | standard |
+| `nvidia-smi` | per-GPU **util**, **power**, **temp**, **graphics/SM clocks** | standard |
+| `nvidia-smi` | gpu **mem** total/used/%, **memory temp**, **mem clock** | **GB10: unavailable** (unified LPDDR5X — see note below) |
 | `/sys/class/thermal/thermal_zone*` | SoC / CPU package temp (the 95–100 °C zone) | Linux |
-| `/proc/stat`, `/proc/meminfo` | CPU %, RAM % | Linux |
+| `/proc/stat`, `/proc/meminfo` | CPU %, RAM % (RAM reflects the shared LPDDR5X pool) | Linux |
 | `/sys/class/hwmon/*` (`spark_hwmon`) | 8 temps + 14 power channels + fans | if driver installed |
 | `/sys/devices/.../cpufreq` | CPU clock (kHz→MHz) | Linux |
 | `nvme smart-log` | NVMe drive temp | if `nvme` + device |
 | `http://127.0.0.1:8000/metrics` | vLLM tokens/s, active requests (head only) | if vLLM running |
+
+> **GB10 GPU memory note.** DGX Spark uses one pool of unified LPDDR5X shared by the
+> CPU and GPU, so `nvidia-smi` reports GPU memory usage (**`Not Supported`**) as well as
+> **memory temperature** and the **memory clock** as **N/A**. The dashboard emits these as
+> `null` (shown as **N/A**), and system RAM (`/proc/meminfo`) already reflects the shared
+> pool — so the **RAM** tile is the authoritative memory figure. Use the **unavailable**
+> control (default: *hide*) in the UI to either hide or show these tiles.
 
 ## Build & run (dev, on the head node)
 
@@ -106,14 +114,16 @@ GOOS=linux GOARCH=arm64 go build -o dash-serve-linux-arm64 .
   `poll_ms`; then repeated `metrics` events (one per node per tick):
   ```json
   { "node_id":"head","ts":1786065220.44,"up":true,"source":"local:sysfs+nvidia-smi",
-    "gpu":[{ "idx":0,"util_pct":83,"mem_pct":45,"power_w":92,"temp_c":66,"mem_temp_c":62,
-             "clock_graphics_mhz":1185,"clock_mem_mhz":1100,"name":"GB10" }],
+    "gpu":[{ "idx":0,"util_pct":83,"mem_pct":null,"power_w":92,"temp_c":66,"mem_temp_c":null,
+             "clock_graphics_mhz":1185,"clock_mem_mhz":null,"name":"GB10" }],
     "soc_temp_c":96.5,"cpu_pct":14,"ram":{ "total_mb":196412,"used_mb":41436,"pct":21 },
     "power":{ "sys_total":335,"gpu_total":176 },"temps":{ "soc_pkg":96.5 },
     "fans":{ "fan0":2369 },"nvme_temp_c":49,"cpu_clk_mhz":2400,
     "vllm":{ "reachable":false,"running_requests":-1,"gen_tokens_rate":-1 } }
   ```
-  Missing sources are `null`/absent; a down worker sends `"up":false` with an
+  Missing sources are `null`/absent — e.g. on GB10 the GPU **memory** fields,
+  **memory temp** (`mem_temp_c`) and **mem clock** (`clock_mem_mhz`) are `null`
+  (see the metrics note above); a down worker sends `"up":false` with an
   `error` field while the head keeps streaming.
 - `GET /api/config` / `POST /api/config` — read/set `{"poll_ms": <ms>}`. Changing
   it broadcasts a `config` event so every open tab updates its controls.
@@ -123,6 +133,9 @@ GOOS=linux GOARCH=arm64 go build -o dash-serve-linux-arm64 .
 
 - Tiles show current values; the **view toggle** switches between per-node and
   aggregated (summed/averaged, clearly labeled).
+- The **unavailable toggle** hides (default) or shows metrics the current
+  hardware doesn't report (e.g. GB10 GPU memory / memory temp / mem clock);
+  hidden plots are removed rather than left blank. Persisted per browser.
 - The **LIVE badge** lights when vLLM is generating (tokens/s + active requests)
   or, as a fallback, on a GPU power/utilization spike.
 - Four canvas plots (tile-free, downsampled to canvas width) show temperature,

@@ -17,7 +17,7 @@ set -u
 if command -v nvidia-smi >/dev/null 2>&1; then
   nvidia-smi \
     --query-gpu=index,utilization.gpu,utilization.memory,memory.total,memory.used,power.draw,temperature.gpu,temperature.memory,clocks.current.graphics,clocks.current.sm,clocks.current.memory,name \
-    --format=csv,noheader,nounits 2>/dev/null | tr -d ' ' | while IFS=',' read -r idx ug um memtot memused pw tg tm cg csm cm name; do
+    --format=csv,noheader,nounits 2>/dev/null | tr -d ' ' | sed 's/\[N\/A\]/NA/g; s/NotSupported/NA/g' | while IFS=',' read -r idx ug um memtot memused pw tg tm cg csm cm name; do
       printf 'GPU|%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' "$idx" "$ug" "$um" "$memtot" "$memused" "$pw" "$tg" "$tm" "$cg" "$csm" "$cm" "$name"
     done
 fi

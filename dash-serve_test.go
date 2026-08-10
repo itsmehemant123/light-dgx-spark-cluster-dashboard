@@ -31,8 +31,14 @@ NVME|52
 		t.Fatalf("want 1 gpu, got %d", len(r.gpus))
 	}
 	g := r.gpus[0]
-	if g.Idx != 0 || g.UtilPct != 83 || g.MemPct != 45 || g.PowerW != 92 || g.TempC != 66 || g.MemTempC != 62 || g.Name != "GB10" {
+	if g.Idx != 0 || g.UtilPct != 83 || g.PowerW != 92 || g.TempC != 66 || g.Name != "GB10" {
 		t.Errorf("gpu parsed wrong: %+v", g)
+	}
+	if g.MemPct == nil || *g.MemPct != 45 {
+		t.Errorf("mem pct wrong: %v", g.MemPct)
+	}
+	if g.MemTempC == nil || *g.MemTempC != 62 {
+		t.Errorf("mem temp wrong: %v", g.MemTempC)
 	}
 	if len(r.zones) != 2 || r.zones[0].label != "soc_thermal" {
 		t.Errorf("zones wrong: %+v", r.zones)
@@ -51,6 +57,48 @@ NVME|52
 	}
 	if r.nvme == nil || *r.nvme != 52 {
 		t.Errorf("nvme wrong: %v", r.nvme)
+	}
+}
+
+func TestParseCollectOutputNAVals(t *testing.T) {
+	// Mirrors a live DGX Spark (GB10): GPU memory, memory temp and mem clock
+	// are unsupported and come through as "NA" after the script normalizes
+	// "[N/A]" / "Not Supported".
+	out := `GPU|0,83,NA,NA,NA,92,66,NA,721,721,NA,GB10
+`
+	r := parseCollectOutput(out)
+	if len(r.gpus) != 1 {
+		t.Fatalf("want 1 gpu, got %d", len(r.gpus))
+	}
+	g := r.gpus[0]
+	// confirmed-available fields still parse
+	if g.UtilPct != 83 || g.PowerW != 92 || g.TempC != 66 || g.ClkGFXMHz != 721 || g.ClkSMMHz != 721 {
+		t.Errorf("available gpu fields wrong: %+v", g)
+	}
+	// unsupported fields must be nil, not 0
+	for name, v := range map[string]*float64{
+		"mem_pct": g.MemPct, "mem_total_mb": g.MemTotalMB, "mem_used_mb": g.MemUsedMB,
+		"mem_temp_c": g.MemTempC, "clock_mem_mhz": g.ClkMemMHz,
+	} {
+		if v != nil {
+			t.Errorf("%s should be nil (unavailable), got %v", name, v)
+		}
+	}
+}
+
+func TestParseCollectOutputNAVariants(t *testing.T) {
+	// raw nvidia-smi forms (before the script's sed normalize step) must also nil out
+	out := `GPU|0,10,[N/A],Not Supported,NotSupported,1,2,[N/A],3,4,[N/A],GB10
+`
+	g := parseCollectOutput(out).gpus[0]
+	if g.MemTotalMB != nil {
+		t.Fatalf("expected nil mem_total for [N/A] variants, got %v", g.MemTotalMB)
+	}
+	if g.MemUsedMB != nil || g.MemTempC != nil || g.ClkMemMHz != nil {
+		t.Fatalf("expected nil for Not Supported variants, got %+v", g)
+	}
+	if g.UtilPct != 10 {
+		t.Errorf("util wrong: %v", g.UtilPct)
 	}
 }
 

@@ -41,6 +41,12 @@ let vllm = null;
 let tileRefs = null;
 const legendCache = {};
 
+// Show-vs-hide for metrics that report no value on the current hardware
+// (e.g. GB10 GPU memory, memory temp, mem clock). Client-side only.
+let showUnavail = false;
+const everHad = {}; // metric key -> true once any node reported a real value
+let lastAvailSig = "";
+
 function el(tag, cls, text) { const d = document.createElement(tag); if (cls) d.className = cls; if (text != null) d.textContent = text; return d; }
 function fmt(v) { return (typeof v === "number") ? (Math.round(v * 10) / 10).toString() : String(v); }
 function clock(t) { return new Date(t * 1000).toTimeString().slice(0, 8); }
@@ -66,6 +72,7 @@ function nodeNumbers(m) {
 // ---- series buffer ----
 function push(node, key, t, v) {
   if (v == null || v === "") return;
+  everHad[key] = true;
   let a = series[node][key] || (series[node][key] = []);
   a.push({ t, v });
   if (a.length > FINE_CAP) {
@@ -74,6 +81,19 @@ function push(node, key, t, v) {
     if (out[out.length - 1].t !== a[a.length - 1].t) out.push(a[a.length - 1]);
     series[node][key] = out;
   }
+}
+
+// A metric counts as "available" if, in show mode, everything is shown, or if
+// any node has ever reported a real (non-null) value for it.
+function isAvailable(key) { return showUnavail || everHad[key] === true; }
+
+function availSig() {
+  return METRICS.concat(EXTRA).map(m => (isAvailable(m.key) ? 1 : 0)).join("");
+}
+function availChanged() {
+  const s = availSig();
+  if (s !== lastAvailSig) { lastAvailSig = s; return true; }
+  return false;
 }
 
 function aggSeries(key, reducer) {
@@ -90,7 +110,7 @@ function buildTiles(v) {
   const c = document.getElementById("tiles");
   c.innerHTML = "";
   tileRefs = {};
-  const metrics = METRICS.concat(EXTRA);
+  const metrics = METRICS.concat(EXTRA).filter(m => isAvailable(m.key));
   for (const m of metrics) {
     const card = el("div", "card");
     card.appendChild(el("div", "lbl", m.label + " · " + m.unit));
@@ -260,15 +280,43 @@ function onMetrics(m) {
   for (const key of ALL_KEYS) push(m.node_id, key, m.ts, nums[key]);
   setStatus(lastNums.head ? lastNums.head.up : false, lastNums.worker ? lastNums.worker.up : undefined);
   updateBadge();
+  refreshUI();
+}
+
+// Rebuild tiles if in hide mode and the set of available metrics has grown,
+// refresh plot visibility, then redraw.
+function refreshUI() {
+  if (!showUnavail && availChanged()) buildTiles(view);
+  updatePlotsVisibility();
   updateTiles();
   scheduleDraw();
+}
+
+// In hide mode, drop a plot entirely (display:none) when every one of its
+// metrics is unavailable, so we don't leave an empty canvas.
+function updatePlotsVisibility() {
+  for (const def of PLOT_DEFS) {
+    const plotEl = document.getElementById(def.canvas).closest(".plot");
+    if (!plotEl) continue;
+    const anyAvail = def.keys.some(k => isAvailable(k));
+    plotEl.style.display = anyAvail ? "" : "none";
+  }
 }
 
 function setView(v) {
   view = v;
   document.getElementById("view-per").classList.toggle("active", v === "per");
   document.getElementById("view-agg").classList.toggle("active", v === "agg");
-  buildTiles(v); updateTiles(); drawAll();
+  buildTiles(v); updatePlotsVisibility(); updateTiles(); drawAll();
+}
+
+function setShowUnavail(v) {
+  showUnavail = v;
+  lastAvailSig = "";
+  document.getElementById("unav-hide").classList.toggle("active", !v);
+  document.getElementById("unav-show").classList.toggle("active", v);
+  try { localStorage.setItem("dash-unavail", v ? "show" : "hide"); } catch (e) { /* private browsing */ }
+  buildTiles(view); updatePlotsVisibility(); updateTiles(); drawAll();
 }
 
 function markPoll(ms) { document.querySelectorAll("[data-poll]").forEach(b => b.classList.toggle("active", parseInt(b.dataset.poll) === ms)); }
@@ -281,6 +329,8 @@ document.querySelectorAll("[data-poll]").forEach(b => b.addEventListener("click"
 }));
 document.getElementById("view-per").addEventListener("click", () => setView("per"));
 document.getElementById("view-agg").addEventListener("click", () => setView("agg"));
+document.getElementById("unav-hide").addEventListener("click", () => setShowUnavail(false));
+document.getElementById("unav-show").addEventListener("click", () => setShowUnavail(true));
 
 // ---- themes (client-side only; persisted per browser, no server state) ----
 function applyTheme(name) {
@@ -294,6 +344,14 @@ themeSel.addEventListener("change", () => applyTheme(themeSel.value));
   try { t = localStorage.getItem("dash-theme") || "default"; } catch (e) { /* ignore */ }
   themeSel.value = t;
   applyTheme(t);
+})();
+
+(function initUnavail() {
+  let v = false;
+  try { v = (localStorage.getItem("dash-unavail") || "hide") === "show"; } catch (e) { /* ignore */ }
+  showUnavail = v;
+  document.getElementById("unav-hide").classList.toggle("active", !v);
+  document.getElementById("unav-show").classList.toggle("active", v);
 })();
 
 buildTiles(view);

@@ -21,18 +21,18 @@ const (
 // ---- JSON payload pushed over SSE (one per node per tick) ----
 
 type GPU struct {
-	Idx        int     `json:"idx"`
-	UtilPct    float64 `json:"util_pct"`
-	MemPct     float64 `json:"mem_pct"`
-	MemTotalMB float64 `json:"mem_total_mb"`
-	MemUsedMB  float64 `json:"mem_used_mb"`
-	PowerW     float64 `json:"power_w"`
-	TempC      float64 `json:"temp_c"`
-	MemTempC   float64 `json:"mem_temp_c"`
-	ClkGFXMHz  float64 `json:"clock_graphics_mhz"`
-	ClkSMMHz   float64 `json:"clock_sm_mhz"`
-	ClkMemMHz  float64 `json:"clock_mem_mhz"`
-	Name       string  `json:"name"`
+	Idx        int      `json:"idx"`
+	UtilPct    float64  `json:"util_pct"`
+	MemPct     *float64 `json:"mem_pct"`
+	MemTotalMB *float64 `json:"mem_total_mb"`
+	MemUsedMB  *float64 `json:"mem_used_mb"`
+	PowerW     float64  `json:"power_w"`
+	TempC      float64  `json:"temp_c"`
+	MemTempC   *float64 `json:"mem_temp_c"`
+	ClkGFXMHz  float64  `json:"clock_graphics_mhz"`
+	ClkSMMHz   float64  `json:"clock_sm_mhz"`
+	ClkMemMHz  *float64 `json:"clock_mem_mhz"`
+	Name       string   `json:"name"`
 }
 
 type RAM struct {
@@ -91,6 +91,22 @@ type tagVal struct {
 func f(s string) float64 {
 	v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64)
 	return v
+}
+
+// fOpt parses an optional numeric. Unavailable values (nvidia-smi emits
+// "[N/A]" / "Not Supported" for unsupported query fields) and non-numeric
+// input map to nil so the JSON payload reports them as unavailable (null)
+// rather than a misleading 0.
+func fOpt(s string) *float64 {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "NA" || s == "[N/A]" || s == "Not Supported" || s == "NotSupported" {
+		return nil
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return nil
+	}
+	return &v
 }
 
 // ---- collection runners ----
@@ -208,15 +224,15 @@ func parseCollectOutput(out string) rawMetrics {
 			r.gpus = append(r.gpus, GPU{
 				Idx:        int(f(fld[0])),
 				UtilPct:    f(fld[1]),
-				MemPct:     f(fld[2]),
-				MemTotalMB: f(fld[3]),
-				MemUsedMB:  f(fld[4]),
+				MemPct:     fOpt(fld[2]),
+				MemTotalMB: fOpt(fld[3]),
+				MemUsedMB:  fOpt(fld[4]),
 				PowerW:     f(fld[5]),
 				TempC:      f(fld[6]),
-				MemTempC:   f(fld[7]),
+				MemTempC:   fOpt(fld[7]),
 				ClkGFXMHz:  f(fld[8]),
 				ClkSMMHz:   f(fld[9]),
-				ClkMemMHz:  f(fld[10]),
+				ClkMemMHz:  fOpt(fld[10]),
 				Name:       fld[11],
 			})
 		case "ZONE":

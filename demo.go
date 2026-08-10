@@ -27,18 +27,13 @@ func (d *DemoRunner) Run(ctx context.Context) (rawMetrics, error) {
 	idx := int(step) % 2
 	r := rawMetrics{temps: map[string]float64{}, powers: map[string]float64{}, fans: map[string]float64{}}
 	r.gpus = append(r.gpus, GPU{
-		Idx:        idx,
-		UtilPct:    breathe,
-		MemPct:     30 + math.Sin(t/3.0)*10,
-		MemTotalMB: 102400,
-		MemUsedMB:  46000 + math.Sin(t/3.0)*8000,
-		PowerW:     60 + breathe*0.8 + rand.Float64()*3,
-		TempC:      55 + breathe*0.15,
-		MemTempC:   62 + breathe*0.1,
-		ClkGFXMHz:  clk,
-		ClkSMMHz:   clk,
-		ClkMemMHz:  1100,
-		Name:       "GB10 (demo)",
+		Idx:       idx,
+		UtilPct:   breathe,
+		PowerW:    60 + breathe*0.8 + rand.Float64()*3,
+		TempC:     55 + breathe*0.15,
+		ClkGFXMHz: clk,
+		ClkSMMHz:  clk,
+		Name:      "GB10 (demo)",
 	})
 	cc := 2400.0
 	r.cpuClk = &cc
