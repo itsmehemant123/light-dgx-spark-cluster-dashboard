@@ -4,11 +4,11 @@ This installs a low-privileged `dashdash` system user that runs the dashboard an
 reaches the worker **passwordlessly** with its own SSH identity — kept fully
 separate from the `nvidia` admin account (which the dashboard never uses).
 
-The instructions in this file match what `dash-serve.service`, `ssh.go` and
+The instructions in this file match what `light-dgx-spark-cluster-dashboard.service`, `ssh.go` and
 `main.go` actually expect:
 
 - The service runs as **`dashdash`** with `WorkingDirectory=/opt/dash` and
-  `ExecStart=/opt/dash/dash-serve` (`dash-serve.service`).
+  `ExecStart=/opt/dash/light-dgx-spark-cluster-dashboard` (`light-dgx-spark-cluster-dashboard.service`).
 - SSH auth uses the **run user's** `~/.ssh/id_ed25519` (then `id_ecdsa`, then
   `id_rsa`), or the `SSH_AUTH_SOCK` ssh-agent (`ssh.go`).
 - Host keys are checked from the run user's `~/.ssh/known_hosts` (`ssh.go`).
@@ -37,9 +37,9 @@ launches the binary directly and never uses a login shell.
 ### 2. Install the binary and give it a home
 ```bash
 sudo mkdir -p /opt/dash
-sudo cp dash-serve-linux-arm64 /opt/dash/dash-serve   # your cross-compiled binary
+sudo cp light-dgx-spark-cluster-dashboard-linux-arm64 /opt/dash/light-dgx-spark-cluster-dashboard   # your cross-compiled binary
 sudo chown -R dashdash:dashdash /opt/dash
-sudo chmod +x /opt/dash/dash-serve
+sudo chmod +x /opt/dash/light-dgx-spark-cluster-dashboard
 ```
 
 ### 3. Generate an SSH key for dashdash (the dashboard's own identity)
@@ -104,7 +104,7 @@ Notes:
   NVMe temp may legitimately show N/A for this low-priv user.
 
 ### 8. The service unit already points at the low-priv worker
-The repo `dash-serve.service` is preconfigured for this deployment:
+The repo `light-dgx-spark-cluster-dashboard.service` is preconfigured for this deployment:
 ```ini
 Environment=DASH_WORKER_IP=192.168.100.137
 Environment=DASH_WORKER_USER=dashdash
@@ -113,12 +113,12 @@ No edit needed unless your worker/SSH port differs.
 
 ### 9. Install and start the service
 ```bash
-sudo cp dash-serve.service /etc/systemd/system/
+sudo cp light-dgx-spark-cluster-dashboard.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now dash-serve
+sudo systemctl enable --now light-dgx-spark-cluster-dashboard
 
-sudo systemctl status dash-serve
-sudo journalctl -u dash-serve -f
+sudo systemctl status light-dgx-spark-cluster-dashboard
+sudo journalctl -u light-dgx-spark-cluster-dashboard -f
 ```
 Open `http://127.0.0.1:8088`. The worker tile should show data, not OFFLINE.
 
@@ -146,8 +146,8 @@ commands like `id` or file reads.
 Verify after editing (the extra command should be ignored/swallowed):
 ```bash
 sudo -u dashdash ssh dashdash@192.168.100.137 'echo should-be-swallowed'
-sudo systemctl restart dash-serve   # ensure the collector still works
-journalctl -u dash-serve -f         # worker tile should show data
+sudo systemctl restart light-dgx-spark-cluster-dashboard   # ensure the collector still works
+journalctl -u light-dgx-spark-cluster-dashboard -f         # worker tile should show data
 ```
 
 ---

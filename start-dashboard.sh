@@ -12,7 +12,7 @@ DASH_WORKER_SSH_PORT="${DASH_WORKER_SSH_PORT:-22}"
 DASH_WORKER_USER="${DASH_WORKER_USER:-root}"
 DASH_VLLM_ENDPOINT="${DASH_VLLM_ENDPOINT:-http://127.0.0.1:8000/metrics}"
 
-BIN="${DASH_BIN:-./dash-serve}"
+BIN="${DASH_BIN:-./light-dgx-spark-cluster-dashboard}"
 if [ ! -x "$BIN" ]; then
   echo "building $BIN for $(go env GOOS)/$(go env GOARCH) ..." >&2
   go build -o "$BIN" .

@@ -10,7 +10,7 @@ time series, so server RAM stays flat regardless of how long a tab is open.
 
 ```
 HEAD node (dashboard host)                  WORKER node
-  dash-serve (Go, ~10 MB static)  ──ssh──▶  embedded collect script
+  light-dgx-spark-cluster-dashboard (Go, ~10 MB static)  ──ssh──▶  embedded collect script
     ├─ local subprocess ──▶ collect_script.sh  (head's own metrics)
     ├─ persistent SSH session ─────────────▶ collect_script.sh (worker metrics)
     ├─ scrape http://127.0.0.1:8000/metrics  (vLLM, for LIVE/tokens badge)
@@ -81,8 +81,8 @@ DASH_DEMO=1 ./start-dashboard.sh
 ## Cross-compile for the head node
 
 ```bash
-GOOS=linux GOARCH=arm64 go build -o dash-serve-linux-arm64 .
-# copy the single file to the head node (e.g. /opt/dash/dash-serve)
+GOOS=linux GOARCH=arm64 go build -o light-dgx-spark-cluster-dashboard-linux-arm64 .
+# copy the single file to the head node (e.g. /opt/dash/light-dgx-spark-cluster-dashboard)
 ```
 
 ## Deployment (head node service)
@@ -92,14 +92,14 @@ GOOS=linux GOARCH=arm64 go build -o dash-serve-linux-arm64 .
 > [`user_setup.md`](user_setup.md)**. This repo is preconfigured for
 > head `192.168.100.254` / worker `192.168.100.137`.
 
-1. Build/copy the binary to `/opt/dash/dash-serve` and create the
+1. Build/copy the binary to `/opt/dash/light-dgx-spark-cluster-dashboard` and create the
    low-privilege `dashdash` account (head: `nologin`, worker: `bash`) with
    passwordless SSH to the worker — follow `user_setup.md`.
 2. Install the service:
    ```bash
-   sudo cp dash-serve.service /etc/systemd/system/
+   sudo cp light-dgx-spark-cluster-dashboard.service /etc/systemd/system/
    sudo systemctl daemon-reload
-   sudo systemctl enable --now dash-serve
+   sudo systemctl enable --now light-dgx-spark-cluster-dashboard
    ```
 3. (Optional) Reverse-proxy on the LAN with nginx — install `nginx-dash.conf`
    (SSE buffering is already off and read timeout is long):

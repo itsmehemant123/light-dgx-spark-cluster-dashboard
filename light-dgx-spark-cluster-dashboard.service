@@ -1,9 +1,9 @@
 # Systemd unit for the DGX Spark dashboard (HEAD node).
 #
 # Install:
-#   sudo cp dash-serve.service /etc/systemd/system/
+#   sudo cp light-dgx-spark-cluster-dashboard.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now dash-serve
+#   sudo systemctl enable --now light-dgx-spark-cluster-dashboard
 #
 # Low-privilege user: create once with
 #   sudo useradd --system --create-home --shell /usr/sbin/nologin dashdash
@@ -27,7 +27,7 @@ Type=simple
 User=dashdash
 Group=dashdash
 WorkingDirectory=/opt/dash
-ExecStart=/opt/dash/dash-serve
+ExecStart=/opt/dash/light-dgx-spark-cluster-dashboard
 Restart=always
 RestartSec=3
 LimitNOFILE=65535

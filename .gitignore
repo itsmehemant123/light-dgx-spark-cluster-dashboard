@@ -1,8 +1,8 @@
 # Opencode
 opencode.txt
 
-/dash-serve
-/dash-serve-linux-arm64
+/light-dgx-spark-cluster-dashboard
+/light-dgx-spark-cluster-dashboard-linux-arm64
 *.log
 
 # If you prefer the allow list template instead of the deny list, see community template:
