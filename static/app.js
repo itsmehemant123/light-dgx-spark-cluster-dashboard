@@ -43,6 +43,14 @@ let lastNums = {};
 let vllm = null;
 let tileRefs = null;
 const legendCache = {};
+const statCache = {};
+
+// Plot window (seconds; 0 = all/live) and hidden traces + per-metric thresholds.
+let timeWindow = 0;
+const hiddenTraces = new Set();
+const thresholds = {};      // metric key -> alert-above value (undefined = off)
+const alerting = {};        // metric key -> currently over threshold (for notifications)
+let alertsOpen = false;
 
 // Show-vs-hide for metrics that report no value on the current hardware
 // (e.g. GB10 GPU memory, memory temp, mem clock). Client-side only.
@@ -232,13 +240,26 @@ function collectTraces(def) {
       for (const node of NODES) { const pts = series[node][key] || []; if (pts.length) traces.push({ label: key + "·" + node, color: node === "head" ? base : shadeColor(base, 0.5), pts }); }
     }
   }
-  return traces.filter(tr => tr.pts.length);
+  return traces;
 }
 
 function legendEl(canvasId) {
   if (legendCache[canvasId]) return legendCache[canvasId];
   const plot = document.getElementById(canvasId).closest(".plot");
-  const l = el("div", "legend"); plot.appendChild(l); legendCache[canvasId] = l; return l;
+  const l = plot.querySelector(".legend");
+  legendCache[canvasId] = l; return l;
+}
+
+function statEl(canvasId) {
+  if (statCache[canvasId]) return statCache[canvasId];
+  const plot = document.getElementById(canvasId).closest(".plot");
+  const s = plot.querySelector(".plot-title .stat");
+  statCache[canvasId] = s; return s;
+}
+
+function toggleTrace(label) {
+  if (hiddenTraces.has(label)) hiddenTraces.delete(label); else hiddenTraces.add(label);
+  drawAll();
 }
 
 function draw(def) {
@@ -255,12 +276,38 @@ function draw(def) {
   const gridCol = cs.getPropertyValue("--grid").trim() || "#1c2733";
   const dimCol = cs.getPropertyValue("--dim").trim() || "#7d8b99";
 
-  const traces = collectTraces(def);
-  const leg = legendEl(def.canvas); leg.innerHTML = "";
-  for (const tr of traces) { const s = el("span", ""); s.style.color = tr.color; s.textContent = tr.label; leg.appendChild(s); }
+  const all = collectTraces(def);
 
-  let minT = Infinity, maxT = -Infinity, minV = Infinity, maxV = -Infinity;
-  for (const tr of traces) for (const p of tr.pts) { if (p.t < minT) minT = p.t; if (p.t > maxT) maxT = p.t; if (p.v < minV) minV = p.v; if (p.v > maxV) maxV = p.v; }
+  // Legend (includes hidden traces so they can be re-shown; clickable).
+  const leg = legendEl(def.canvas); leg.innerHTML = "";
+  for (const tr of all) {
+    const s = el("span", hiddenTraces.has(tr.label) ? "hidden" : "");
+    s.style.color = tr.color; s.textContent = tr.label;
+    s.addEventListener("click", () => toggleTrace(tr.label));
+    leg.appendChild(s);
+  }
+
+  // Determine window lower bound from the newest sample across traces.
+  let now = -Infinity;
+  for (const tr of all) for (const p of tr.pts) if (p.t > now) now = p.t;
+  const lo = timeWindow > 0 ? now - timeWindow : null;
+
+  // Window-filter traces (skip hidden), gather stats over the shown window.
+  const traces = [];
+  let minT = Infinity, maxT = -Infinity, minV = Infinity, maxV = -Infinity, sum = 0, count = 0;
+  for (const tr of all) {
+    if (hiddenTraces.has(tr.label)) continue;
+    const pts = lo ? tr.pts.filter(p => p.t >= lo) : tr.pts;
+    if (!pts.length) continue;
+    traces.push({ ...tr, pts });
+    for (const p of pts) { if (p.t < minT) minT = p.t; if (p.t > maxT) maxT = p.t; if (p.v < minV) minV = p.v; if (p.v > maxV) maxV = p.v; sum += p.v; count++; }
+  }
+  const stMin = minV, stAvg = count ? sum / count : NaN, stMax = maxV;
+
+  const stat = statEl(def.canvas);
+  if (count) stat.textContent = `min ${fmt(stMin)} · avg ${fmt(stAvg)} · max ${fmt(stMax)}`;
+  else stat.textContent = "";
+
   if (!isFinite(minT) || traces.length === 0) {
     ctx.fillStyle = dimCol; ctx.textAlign = "center"; ctx.fillText("waiting for data…", W / 2, H / 2);
     return;
@@ -311,6 +358,7 @@ function refreshUI() {
   if (!showUnavail && availChanged()) buildTiles(view);
   updatePlotsVisibility();
   updateTiles();
+  updateAlarms();
   scheduleDraw();
 }
 
@@ -327,6 +375,7 @@ function updatePlotsVisibility() {
 
 function setView(v) {
   view = v;
+  hiddenTraces.clear();
   document.getElementById("view-per").classList.toggle("active", v === "per");
   document.getElementById("view-agg").classList.toggle("active", v === "agg");
   buildTiles(v); updatePlotsVisibility(); updateTiles(); drawAll();
@@ -346,6 +395,87 @@ function markPoll(ms) { document.querySelectorAll("[data-poll]").forEach(b => b.
 let drawScheduled = false;
 function scheduleDraw() { if (drawScheduled) return; drawScheduled = true; requestAnimationFrame(() => { drawScheduled = false; drawAll(); }); }
 
+// ---- window selector ----
+function setWindow(sec) {
+  timeWindow = sec;
+  document.querySelectorAll("[data-win]").forEach(b => b.classList.toggle("active", parseInt(b.dataset.win) === sec));
+  try { localStorage.setItem("dash-window", String(sec)); } catch (e) { /* private browsing */ }
+  drawAll();
+}
+
+// ---- threshold alerts ----
+// Aggregated value used for the one-card (view=agg) alarm check.
+function aggVal(key) {
+  const def = METRICS.find(m => m.key === key);
+  if (!def) return null;
+  const hv = lastNums.head ? lastNums.head[key] : null, wv = lastNums.worker ? lastNums.worker[key] : null;
+  if (hv != null && wv != null) return def.agg === "sum" ? hv + wv : (hv + wv) / 2;
+  if (hv != null) return hv; if (wv != null) return wv;
+  return null;
+}
+
+function maybeNotify(key) {
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const def = METRICS.find(m => m.key === key);
+    new Notification("⚠ " + (def ? def.label : key) + " over threshold", { body: "node crossed your alert level", silent: true });
+  } catch (e) { /* ignore */ }
+}
+
+function updateAlarms() {
+  if (view === "agg") {
+    for (const key of TILE_METRIC_KEYS) {
+      const t = thresholds[key]; const ref = tileRefs[key]; if (!ref) continue;
+      const over = t != null && (v => v != null && v > t)(aggVal(key));
+      tieAlarm(ref.agg, key, over);
+    }
+  } else {
+    for (const key of TILE_METRIC_KEYS) {
+      const t = thresholds[key]; const ref = tileRefs[key]; if (!ref) continue;
+      let over = false;
+      for (const node of NODES) { const v = lastNums[node] ? lastNums[node][key] : null; if (t != null && v != null && v > t) over = true; }
+      tieAlarm(ref.head || ref.worker, key, over);
+    }
+  }
+}
+
+function tieAlarm(cell, key, over) {
+  const cardEl = cell.closest(".card"); if (!cardEl) return;
+  cardEl.classList.toggle("alarm", over);
+  if (over && !alerting[key]) { alerting[key] = true; maybeNotify(key); }
+  if (!over) alerting[key] = false;
+}
+
+function saveThresholds() { try { localStorage.setItem("dash-thresholds", JSON.stringify(thresholds)); } catch (e) { /* private browsing */ } }
+
+function buildAlertsPanel() {
+  const list = document.getElementById("alerts-list"); list.innerHTML = "";
+  for (const m of METRICS) {
+    const row = el("div", "alert-row");
+    row.appendChild(el("span", "", m.label + (m.unit ? " (" + m.unit + ")" : "")));
+    const inp = document.createElement("input");
+    inp.type = "number"; inp.step = "any"; inp.min = "0"; inp.placeholder = "off";
+    if (thresholds[m.key] != null) inp.value = thresholds[m.key];
+    inp.addEventListener("change", () => {
+      const raw = parseFloat(inp.value);
+      if (isFinite(raw) && raw > 0) { thresholds[m.key] = raw; requestNotifPermission(); }
+      else delete thresholds[m.key];
+      saveThresholds(); updateAlarms();
+    });
+    row.appendChild(inp); list.appendChild(row);
+  }
+}
+
+function requestNotifPermission() {
+  try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch (e) { /* ignore */ }
+}
+
+function toggleAlertsPanel() {
+  alertsOpen = !alertsOpen;
+  document.getElementById("alerts-panel").hidden = !alertsOpen;
+  document.getElementById("alerts-toggle").classList.toggle("active", alertsOpen);
+}
+
 document.querySelectorAll("[data-poll]").forEach(b => b.addEventListener("click", () => {
   fetch("/api/config", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ poll_ms: parseInt(b.dataset.poll) }) });
 }));
@@ -353,6 +483,8 @@ document.getElementById("view-per").addEventListener("click", () => setView("per
 document.getElementById("view-agg").addEventListener("click", () => setView("agg"));
 document.getElementById("unav-hide").addEventListener("click", () => setShowUnavail(false));
 document.getElementById("unav-show").addEventListener("click", () => setShowUnavail(true));
+document.querySelectorAll("[data-win]").forEach(b => b.addEventListener("click", () => setWindow(parseInt(b.dataset.win))));
+document.getElementById("alerts-toggle").addEventListener("click", toggleAlertsPanel);
 
 // ---- themes (client-side only; persisted per browser, no server state) ----
 function applyTheme(name) {
@@ -374,6 +506,22 @@ themeSel.addEventListener("change", () => applyTheme(themeSel.value));
   showUnavail = v;
   document.getElementById("unav-hide").classList.toggle("active", !v);
   document.getElementById("unav-show").classList.toggle("active", v);
+})();
+
+(function initWindow() {
+  let w = 0;
+  try { w = parseInt(localStorage.getItem("dash-window") || "0"); } catch (e) { /* ignore */ }
+  if (!isFinite(w) || w < 0) w = 0;
+  timeWindow = w;
+  document.querySelectorAll("[data-win]").forEach(b => b.classList.toggle("active", parseInt(b.dataset.win) === w));
+})();
+
+(function initAlerts() {
+  try {
+    const t = JSON.parse(localStorage.getItem("dash-thresholds") || "{}");
+    for (const k in t) if (t[k] != null && t[k] > 0) thresholds[k] = t[k];
+  } catch (e) { /* ignore */ }
+  buildAlertsPanel();
 })();
 
 buildTiles(view);

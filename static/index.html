@@ -29,6 +29,13 @@
     <button id="view-agg">aggregated</button>
   </div>
   <div class="ctl-group">
+    <span class="ctl-label">window</span>
+    <button data-win="0" class="active">live</button>
+    <button data-win="30">30s</button>
+    <button data-win="120">2m</button>
+    <button data-win="600">10m</button>
+  </div>
+  <div class="ctl-group">
     <span class="ctl-label">unavailable</span>
     <button id="unav-hide" class="active">hide</button>
     <button id="unav-show">show</button>
@@ -50,16 +57,39 @@
       <option value="light">Light</option>
     </select>
   </div>
+  <div class="ctl-group">
+    <button id="alerts-toggle">alerts</button>
+  </div>
 </nav>
+
+<section id="alerts-panel" hidden>
+  <span class="ctl-label">alert when metric exceeds</span>
+  <div id="alerts-list" class="alerts-list"></div>
+</section>
 
 <section id="tiles" class="tiles"></section>
 
 <section class="plots">
-  <div class="plot"><canvas id="plot-temp"></canvas><div class="plot-title">Temperature (°C)</div></div>
-  <div class="plot"><canvas id="plot-power"></canvas><div class="plot-title">Power (W)</div></div>
-  <div class="plot"><canvas id="plot-clock"></canvas><div class="plot-title">Clocks (MHz)</div></div>
-  <div class="plot"><canvas id="plot-util"></canvas><div class="plot-title">Utilization (%)</div></div>
-  <div class="plot"><canvas id="plot-tokens"></canvas><div class="plot-title">Tokens (/s)</div></div>
+  <div class="plot">
+    <div class="plot-head"><div class="plot-title">Temperature (°C)<span class="stat"></span></div><div class="legend"></div></div>
+    <canvas id="plot-temp"></canvas>
+  </div>
+  <div class="plot">
+    <div class="plot-head"><div class="plot-title">Power (W)<span class="stat"></span></div><div class="legend"></div></div>
+    <canvas id="plot-power"></canvas>
+  </div>
+  <div class="plot">
+    <div class="plot-head"><div class="plot-title">Clocks (MHz)<span class="stat"></span></div><div class="legend"></div></div>
+    <canvas id="plot-clock"></canvas>
+  </div>
+  <div class="plot">
+    <div class="plot-head"><div class="plot-title">Utilization (%)<span class="stat"></span></div><div class="legend"></div></div>
+    <canvas id="plot-util"></canvas>
+  </div>
+  <div class="plot">
+    <div class="plot-head"><div class="plot-title">Tokens (/s)<span class="stat"></span></div><div class="legend"></div></div>
+    <canvas id="plot-tokens"></canvas>
+  </div>
 </section>
 
 <footer class="foot">
