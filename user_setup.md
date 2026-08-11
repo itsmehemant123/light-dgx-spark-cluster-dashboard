@@ -39,19 +39,20 @@ sudo useradd --system --create-home --shell /usr/sbin/nologin dashdash
 launches the binary directly and never uses a login shell.
 
 ### 2. Build the binary and install it to /opt/dash
-Build it directly here (no need for a pre-existing artifact) by cross-compiling
-from the repo checkout and writing straight to `/opt/dash`:
+Cross-compile in your own (writable) directory — `/opt/dash` is root-owned, so
+the non-root build must **not** write there directly. Build to the current
+directory, then `sudo install` (which also sets owner/mode) into `/opt/dash`:
 ```bash
 sudo mkdir -p /opt/dash
 cd /path/to/repo                      # your local checkout of this repo
-GOOS=linux GOARCH=arm64 go build -o /opt/dash/light-dgx-spark-cluster-dashboard .
-sudo chown -R dashdash:dashdash /opt/dash
-sudo chmod +x /opt/dash/light-dgx-spark-cluster-dashboard
+GOOS=linux GOARCH=arm64 go build -o light-dgx-spark-cluster-dashboard-linux-arm64 .
+sudo install -o dashdash -g dashdash -m 0755 \
+  light-dgx-spark-cluster-dashboard-linux-arm64 \
+  /opt/dash/light-dgx-spark-cluster-dashboard
 ```
-(Alternatively, cross-compile with `go build -o light-dgx-spark-cluster-dashboard-linux-arm64 .`,
-copy that single file to the head node, and place it at
-`/opt/dash/light-dgx-spark-cluster-dashboard` — the section after step 2 below proceeds
-the same way.)
+(Alternatively leave out the `-o`/`install` and instead just
+`sudo cp light-dgx-spark-cluster-dashboard-linux-arm64 /opt/dash/light-dgx-spark-cluster-dashboard`
+followed by `sudo chown dashdash:dashdash /opt/dash/light-dgx-spark-cluster-dashboard`.)
 
 ### 3. Generate an SSH key for dashdash (the dashboard's own identity)
 ```bash
