@@ -34,13 +34,20 @@ sudo useradd --system --create-home --shell /usr/sbin/nologin dashdash
 `nologin` means nobody logs in interactively. On the head this is safe: systemd
 launches the binary directly and never uses a login shell.
 
-### 2. Install the binary and give it a home
+### 2. Build the binary and install it to /opt/dash
+Build it directly here (no need for a pre-existing artifact) by cross-compiling
+from the repo checkout and writing straight to `/opt/dash`:
 ```bash
 sudo mkdir -p /opt/dash
-sudo cp light-dgx-spark-cluster-dashboard-linux-arm64 /opt/dash/light-dgx-spark-cluster-dashboard   # your cross-compiled binary
+cd /path/to/repo                      # your local checkout of this repo
+GOOS=linux GOARCH=arm64 go build -o /opt/dash/light-dgx-spark-cluster-dashboard .
 sudo chown -R dashdash:dashdash /opt/dash
 sudo chmod +x /opt/dash/light-dgx-spark-cluster-dashboard
 ```
+(Alternatively, cross-compile with `go build -o light-dgx-spark-cluster-dashboard-linux-arm64 .`,
+copy that single file to the head node, and place it at
+`/opt/dash/light-dgx-spark-cluster-dashboard` — the section after step 2 below proceeds
+the same way.)
 
 ### 3. Generate an SSH key for dashdash (the dashboard's own identity)
 ```bash
