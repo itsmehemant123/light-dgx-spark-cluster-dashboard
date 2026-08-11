@@ -20,6 +20,8 @@ const METRICS = [
   { key: "cpu_pct",    label: "CPU",          unit: "%",   agg: "avg", color: "#38bdf8" },
   { key: "ram_pct",    label: "RAM",          unit: "%",   agg: "avg", color: "#f472b6" },
   { key: "gpu_util",   label: "GPU util",     unit: "%",   agg: "avg", color: "#a3e635" },
+  { key: "tokens_rate", label: "Tokens",       unit: "/s",  agg: "avg", color: "#c084fc", always: true },
+  { key: "active_req",  label: "Active reqs",  unit: "",    agg: "avg", color: "#22d3ee", always: true },
 ];
 const ALL_KEYS = METRICS.map(m => m.key);
 const EXTRA = [
@@ -32,6 +34,7 @@ const PLOT_DEFS = [
   { canvas: "plot-power", keys: ["power_total", "power_gpu"],          mode: "sum" },
   { canvas: "plot-clock", keys: ["clk_gpu", "clk_mem", "clk_cpu"],     mode: "avg" },
   { canvas: "plot-util",  keys: ["cpu_pct", "ram_pct", "gpu_util"],    mode: "avg" },
+  { canvas: "plot-tokens", keys: ["tokens_rate"],                      mode: "avg" },
 ];
 
 let view = "per";
@@ -63,6 +66,8 @@ function nodeNumbers(m) {
     power_total: ptotal, power_gpu: gpuPow,
     clk_gpu: g ? (g.clock_graphics_mhz || g.clock_sm_mhz) : null, clk_mem: g ? g.clock_mem_mhz : null, clk_cpu: m.cpu_clk_mhz,
     cpu_pct: m.cpu_pct, ram_pct: (m.ram ? m.ram.pct : null), gpu_util: g ? g.util_pct : null,
+    tokens_rate: m.vllm && m.vllm.reachable && m.vllm.gen_tokens_rate >= 0 ? m.vllm.gen_tokens_rate : null,
+    active_req: m.vllm && m.vllm.reachable && m.vllm.running_requests >= 0 ? m.vllm.running_requests : null,
     fan: (m.fans && Object.keys(m.fans).length) ? Object.values(m.fans).map(v => Math.round(v)).join(" / ") : null,
     nvme: m.nvme_temp_c != null ? Math.round(m.nvme_temp_c) : null,
     up: m.up, source: m.source || "",
@@ -83,9 +88,13 @@ function push(node, key, t, v) {
   }
 }
 
-// A metric counts as "available" if, in show mode, everything is shown, or if
-// any node has ever reported a real (non-null) value for it.
-function isAvailable(key) { return showUnavail || everHad[key] === true; }
+// A metric counts as "available" if it's marked always-visible (e.g. the vLLM
+// token cards), if in show mode everything is shown, or if any node has ever
+// reported a real (non-null) value for it.
+function isAvailable(key) {
+  const def = METRICS.find(m => m.key === key);
+  return showUnavail || (def && def.always) || everHad[key] === true;
+}
 
 function availSig() {
   return METRICS.concat(EXTRA).map(m => (isAvailable(m.key) ? 1 : 0)).join("");
@@ -111,9 +120,10 @@ function buildTiles(v) {
   c.innerHTML = "";
   tileRefs = {};
   const metrics = METRICS.concat(EXTRA).filter(m => isAvailable(m.key));
+  const LARGE_KEYS = ["cpu_pct", "gpu_util", "ram_pct"];
   for (const m of metrics) {
-    const card = el("div", "card");
-    card.appendChild(el("div", "lbl", m.label + " · " + m.unit));
+    const card = el("div", "card" + (LARGE_KEYS.includes(m.key) ? " card-lg" : ""));
+    card.appendChild(el("div", "lbl", m.label + (m.unit ? " · " + m.unit : "")));
     const ref = {};
     if (v === "per") {
       const vals = el("div", "vals"); card.appendChild(vals);
@@ -197,6 +207,18 @@ function updateBadge() {
 }
 
 // ---- plots ----
+// Lighten/desaturate a #rrggbb color so head & worker traces of the same
+// metric stay identifiable by shade while sharing the metric's hue.
+function shadeColor(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const gray = 0.2989 * r + 0.5870 * g + 0.1140 * b;
+  r = Math.round(r + (gray - r) * amt + (255 - r) * amt * 0.4);
+  g = Math.round(g + (gray - g) * amt + (255 - g) * amt * 0.4);
+  b = Math.round(b + (gray - b) * amt + (255 - b) * amt * 0.4);
+  return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
 function collectTraces(def) {
   const traces = [];
   if (view === "agg") {
@@ -206,8 +228,8 @@ function collectTraces(def) {
     }
   } else {
     for (const key of def.keys) {
-      const color = METRICS.find(m => m.key === key).color;
-      for (const node of NODES) { const pts = series[node][key] || []; if (pts.length) traces.push({ label: key + "·" + node, color, pts }); }
+      const base = METRICS.find(m => m.key === key).color;
+      for (const node of NODES) { const pts = series[node][key] || []; if (pts.length) traces.push({ label: key + "·" + node, color: node === "head" ? base : shadeColor(base, 0.5), pts }); }
     }
   }
   return traces.filter(tr => tr.pts.length);
