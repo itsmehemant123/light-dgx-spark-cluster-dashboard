@@ -96,9 +96,9 @@ sudo chown -R dashdash:dashdash /home/dashdash/.ssh
 
 ---
 
-## Back on HEAD NODE — test, then install the service
+## Back on HEAD NODE — verify passwordless access
 
-### 7. Test that dashdash can reach the worker passwordlessly
+### 7. Confirm dashdash can reach the worker passwordlessly
 ```bash
 sudo -u dashdash ssh dashdash@192.168.100.11 'echo ok'
 ```
@@ -114,24 +114,13 @@ Notes:
   error. In particular `nvme smart-log` often needs root/`CAP_SYS_ADMIN`, so
   NVMe temp may legitimately show N/A for this low-priv user.
 
-### 8. The service unit already points at the low-priv worker
-The repo `light-dgx-spark-cluster-dashboard.service` is preconfigured for this deployment:
-```ini
-Environment=DASH_WORKER_IP=192.168.100.11
-Environment=DASH_WORKER_USER=dashdash
-```
-No edit needed unless your worker/SSH port differs.
+---
 
-### 9. Install and start the service
-```bash
-sudo cp light-dgx-spark-cluster-dashboard.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now light-dgx-spark-cluster-dashboard
-
-sudo systemctl status light-dgx-spark-cluster-dashboard
-sudo journalctl -u light-dgx-spark-cluster-dashboard -f
-```
-Open `http://127.0.0.1:8088`. The worker tile should show data, not OFFLINE.
+Installing and running the dashboard as a systemd service is covered in the main
+**README's "Deployment (head node service)"** section. The
+`light-dgx-spark-cluster-dashboard.service` unit ships preconfigured for the
+low-priv `dashdash` worker (`DASH_WORKER_USER=dashdash`), so you won't need to
+edit it unless your worker/SSH port differs.
 
 ---
 
