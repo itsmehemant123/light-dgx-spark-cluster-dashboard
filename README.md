@@ -47,7 +47,7 @@ All optional sources degrade gracefully — missing sources are shown as **N/A**
 
 ## Build & run (dev, on the head node)
 
-Requires Go 1.22+ on the head node (or build the binary anywhere and copy it over).
+Requires Go 1.26.5+ on the head node (or build the binary anywhere and copy it over).
 
 ```bash
 ./start-dashboard.sh            # builds (if needed) and runs with defaults
@@ -57,6 +57,13 @@ Requires Go 1.22+ on the head node (or build the binary anywhere and copy it ove
 Default settings (override with env vars): binds `127.0.0.1:8088`, polls every
 `5000 ms`, worker `192.168.100.11` as user `root`, vLLM at
 `http://127.0.0.1:8000/metrics`.
+
+> **IPs are placeholders.** `192.168.100.10` (head) and `192.168.100.11` (worker)
+> are generic defaults used consistently across the code, scripts, service unit,
+> and docs. Set them to your actual nodes' addresses before production deployment
+> (`DASH_WORKER_IP`, `DASH_WORKER_USER`, and the
+> `light-dgx-spark-cluster-dashboard.service` environment values, and the host
+> references in `user_setup.md`).
 
 To run the full stack without DGX hardware (e.g. on a laptop) use **demo mode**:
 
@@ -90,7 +97,7 @@ GOOS=linux GOARCH=arm64 go build -o light-dgx-spark-cluster-dashboard-linux-arm6
 > Full, corrected walkthrough (dedicated `dashdash` account on both nodes, the
 > step-by-step SSH setup, testing, and worker hardening): **see
 > [`user_setup.md`](user_setup.md)**. This repo is preconfigured for
-> head `192.168.100.254` / worker `192.168.100.137`.
+> head `192.168.100.10` / worker `192.168.100.11`.
 
 1. Build/copy the binary to `/opt/dash/light-dgx-spark-cluster-dashboard` and create the
    low-privilege `dashdash` account (head: `nologin`, worker: `bash`) with

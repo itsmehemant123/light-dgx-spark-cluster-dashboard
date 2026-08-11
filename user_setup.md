@@ -19,12 +19,16 @@ The instructions in this file match what `light-dgx-spark-cluster-dashboard.serv
 
 ## Layout
 
-- **HEAD node** = dashboard host = `192.168.100.254`
-- **WORKER node** = other Spark = `192.168.100.137`
+- **HEAD node** = dashboard host = `192.168.100.10`
+- **WORKER node** = other Spark = `192.168.100.11`
+
+> These are **placeholder addresses** used consistently across the code, scripts,
+> service unit, and docs. Replace them with your actual nodes' addresses before
+> following the production steps below.
 
 ---
 
-## HEAD NODE (192.168.100.254)
+## HEAD NODE (192.168.100.10)
 
 ### 1. Create the low-privileged system user
 ```bash
@@ -61,7 +65,7 @@ dashboard uses.
 ### 4. Pre-authorize the worker's host key
 Run the redirect **as root** (your own shell cannot write into `dashdash`'s home):
 ```bash
-sudo sh -c 'ssh-keyscan 192.168.100.137 >> /home/dashdash/.ssh/known_hosts'
+sudo sh -c 'ssh-keyscan 192.168.100.11 >> /home/dashdash/.ssh/known_hosts'
 sudo chown dashdash:dashdash /home/dashdash/.ssh/known_hosts
 ```
 > `~dashdash` expands to the home directory; replace `/home/dashdash` if
@@ -69,7 +73,7 @@ sudo chown dashdash:dashdash /home/dashdash/.ssh/known_hosts
 
 ---
 
-## WORKER NODE (192.168.100.137)
+## WORKER NODE (192.168.100.11)
 
 ### 5. Create dashdash here too — with a REAL shell (NOT nologin)
 ```bash
@@ -96,11 +100,11 @@ sudo chown -R dashdash:dashdash /home/dashdash/.ssh
 
 ### 7. Test that dashdash can reach the worker passwordlessly
 ```bash
-sudo -u dashdash ssh dashdash@192.168.100.137 'echo ok'
+sudo -u dashdash ssh dashdash@192.168.100.11 'echo ok'
 ```
 You should see `ok`. Then confirm the worker-side reads the collector needs:
 ```bash
-sudo -u dashdash ssh dashdash@192.168.100.137 \
+sudo -u dashdash ssh dashdash@192.168.100.11 \
   'nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,power.draw --format=csv,noheader; head -1 /proc/stat; head -2 /proc/meminfo'
 ```
 Notes:
@@ -113,7 +117,7 @@ Notes:
 ### 8. The service unit already points at the low-priv worker
 The repo `light-dgx-spark-cluster-dashboard.service` is preconfigured for this deployment:
 ```ini
-Environment=DASH_WORKER_IP=192.168.100.137
+Environment=DASH_WORKER_IP=192.168.100.11
 Environment=DASH_WORKER_USER=dashdash
 ```
 No edit needed unless your worker/SSH port differs.
@@ -152,7 +156,7 @@ commands like `id` or file reads.
 
 Verify after editing (the extra command should be ignored/swallowed):
 ```bash
-sudo -u dashdash ssh dashdash@192.168.100.137 'echo should-be-swallowed'
+sudo -u dashdash ssh dashdash@192.168.100.11 'echo should-be-swallowed'
 sudo systemctl restart light-dgx-spark-cluster-dashboard   # ensure the collector still works
 journalctl -u light-dgx-spark-cluster-dashboard -f         # worker tile should show data
 ```
