@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DGX Spark Cluster Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23070b12'/><path d='M10 24V9h6a6 6 0 0 1 0 12h-3' fill='none' stroke='%23374a5e' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/><path d='M22 24l3-3m-3 3l3 3' stroke='%234b5563' stroke-width='2.5' stroke-linecap='round'/></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <div class="brand">DGX <span>Spark</span> dashboard</div>
+  <div class="brand">DGX <span>Spark</span> Cluster Dashboard</div>
   <div id="status" class="status"><span class="dot"></span><span id="status-text">connecting…</span></div>
   <div id="tokens" class="tokens" hidden></div>
   <div id="live" class="live" hidden>LIVE</div>
@@ -89,6 +90,10 @@
   <div class="plot">
     <div class="plot-head"><div class="plot-title">Tokens (/s)<span class="stat"></span></div><div class="legend"></div></div>
     <canvas id="plot-tokens"></canvas>
+  </div>
+  <div class="plot">
+    <div class="plot-head"><div class="plot-title">Active Requests<span class="stat"></span></div><div class="legend"></div></div>
+    <canvas id="plot-req"></canvas>
   </div>
 </section>
 

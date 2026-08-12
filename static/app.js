@@ -8,6 +8,10 @@ const NODES = ["head", "worker"];
 const series = { head: {}, worker: {} };
 const FINE_CAP = 3600;
 
+// Tab favicons (swapped when a workload is generating, see updateBadge).
+const FAVICON_IDLE = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23070b12'/><path d='M10 24V9h6a6 6 0 0 1 0 12h-3' fill='none' stroke='%23374a5e' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/><path d='M22 24l3-3m-3 3l3 3' stroke='%234b5563' stroke-width='2.5' stroke-linecap='round'/></svg>";
+const FAVICON_LIVE = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23070b12'/><circle cx='23.5' cy='23.5' r='7.5' fill='none' stroke='%23a3e635' stroke-opacity='0.5' stroke-width='2'/><path d='M10 24V9h6a6 6 0 0 1 0 12h-3' fill='none' stroke='%2322d3ee' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/><path d='M22 24l3-3m-3 3l3 3' stroke='%23a3e635' stroke-width='2.5' stroke-linecap='round'/></svg>";
+
 const METRICS = [
   { key: "soc_temp",   label: "SoC pkg temp", unit: "°C",  agg: "avg", color: "#eab308" },
   { key: "gpu_temp",   label: "GPU temp",     unit: "°C",  agg: "avg", color: "#ef4444" },
@@ -35,6 +39,7 @@ const PLOT_DEFS = [
   { canvas: "plot-clock", keys: ["clk_gpu", "clk_mem", "clk_cpu"],     mode: "avg" },
   { canvas: "plot-util",  keys: ["cpu_pct", "ram_pct", "gpu_util"],    mode: "avg" },
   { canvas: "plot-tokens", keys: ["tokens_rate"],                      mode: "avg" },
+  { canvas: "plot-req",    keys: ["active_req"],                       mode: "avg" },
 ];
 
 let view = "per";
@@ -212,6 +217,14 @@ function updateBadge() {
   } else { tok.hidden = true; }
   for (const n of NODES) { const g = lastNums[n]; if (g && g.up && g.gpu_util > 20 && g.power_gpu > 40) generating = true; }
   live.hidden = !generating;
+  setFavicon(generating);
+}
+
+function setFavicon(generating) {
+  const link = document.querySelector('link[rel="icon"]');
+  if (!link) return;
+  const href = generating ? FAVICON_LIVE : FAVICON_IDLE;
+  if (link.getAttribute("href") !== href) link.setAttribute("href", href);
 }
 
 // ---- plots ----
