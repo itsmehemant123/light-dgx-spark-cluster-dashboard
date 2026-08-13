@@ -186,3 +186,21 @@ go vet ./...
 - Aggregated view is computed client-side from the two per-node streams.
 - Instantaneous `spark_hwmon` power oscillates (100 ms firmware PID); the tiled
   value is the latest sample and the plot shows its trend over time.
+
+## Screenshots
+
+The dashboard ships with **12 selectable themes** (switchable in the UI, persisted
+per browser). A few of them, in action:
+
+**Default (dark)**
+
+<img src="screenshots/default_theme.png" alt="Default theme" width="640">
+
+**Paper**
+
+<img src="screenshots/paper_theme.png" alt="Paper theme" width="640">
+
+**Retro (pixel)**
+
+<img src="screenshots/retro_pixel_theme.png" alt="Retro pixel theme" width="640">
+
